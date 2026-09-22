@@ -14,16 +14,17 @@
 
   function playing() {
     var ex = game.exercise(game.currentId);
-    if (ex && ex.type === "rounds" && ui.view) {
-      return ex.rounds[ui.view.step] || ex;
-    }
+    var steps = game.currentSteps();
+    if (steps && ui.view) return steps[ui.view.step] || ex;
     return ex;
   }
 
   function afterStepSuccess() {
     var ex = game.exercise(game.currentId);
-    if (ex && ex.type === "rounds" && ui.view && ui.view.step < ex.rounds.length - 1) {
-      ui.holdForNextRound(ex.rounds[ui.view.step].note || "Верно!");
+    var steps = game.currentSteps();
+    if (steps && ui.view && !game.isFinishedStep(ex, ui.view.step)) {
+      var step = steps[ui.view.step];
+      ui.holdForNextRound(step.note || "Верно!", step.link || step.links);
       return;
     }
     afterSuccess();
@@ -166,8 +167,8 @@
     }
     var message =
       result.reason === "main"
-        ? "Попробуй ещё раз. Не выбирай подлежащее и сказуемое — только слова-помощники."
-        : "Попробуй ещё раз. Есть ещё второстепенные члены.";
+        ? ex.extraHint || "Попробуй ещё раз. Здесь есть лишнее слово."
+        : ex.missingHint || "Попробуй ещё раз. Выбери все нужные слова.";
     ui.fail(ex, document.getElementById("tokens"), message);
     if (game.hintLevel >= 3) ui.glowCorrect(ex);
   }
@@ -238,7 +239,12 @@
       }
       node.classList.add("is-matched", "is-correct");
       node.disabled = true;
+      ui.view.matchCount = (ui.view.matchCount || 0) + 1;
+      var mark = String(ui.view.matchCount);
+      if (leftNode) leftNode.setAttribute("data-mark", mark);
+      node.setAttribute("data-mark", mark);
       ui.view.left = null;
+      if (ex.pairNote) ui.setOwl(ex.pairNote);
       if (game.checkPairs(ex, ui.view.chosen)) {
         afterStepSuccess();
       }

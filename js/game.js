@@ -54,7 +54,31 @@
     this.currentId = id;
     this.mistakes = 0;
     this.hintLevel = 0;
-    return this.exercise(id);
+    var exercise = this.exercise(id);
+    this.steps = null;
+    if (exercise && exercise.type === "quiz") {
+      var count = exercise.count || exercise.pool.length;
+      this.steps = shuffle(exercise.pool.slice()).slice(0, count);
+    } else if (exercise && (exercise.type === "multiStep" || exercise.type === "rounds")) {
+      this.steps = exercise.steps || exercise.rounds;
+    }
+    return exercise;
+  };
+
+  Game.prototype.currentSteps = function () {
+    return this.steps || null;
+  };
+
+  Game.prototype.stepCount = function (exercise) {
+    if (!exercise) return 1;
+    if (exercise.type === "rounds") return exercise.rounds.length;
+    if (exercise.type === "multiStep") return exercise.steps.length;
+    if (exercise.type === "quiz") return exercise.count || (exercise.pool ? exercise.pool.length : 1);
+    return 1;
+  };
+
+  Game.prototype.isFinishedStep = function (exercise, stepIndex) {
+    return stepIndex >= this.stepCount(exercise) - 1;
   };
 
   Game.prototype.registerMistake = function () {
@@ -72,7 +96,7 @@
 
   Game.prototype.completeCurrent = function () {
     var exercise = this.exercise(this.currentId);
-    var steps = exercise && exercise.rounds ? exercise.rounds.length : 1;
+    var steps = this.stepCount(exercise);
     var stars = starsFromMistakes(this.mistakes, steps);
     this.progress.complete(this.currentId, stars, this.mistakes);
     return stars;
@@ -119,14 +143,19 @@
     return expected[chosen.length] || "";
   };
 
-  Game.prototype.checkMultiple = function (exercise, selected) {
-    var needed = exercise.tokens
+  Game.prototype.neededTexts = function (exercise) {
+    if (exercise.answers && exercise.answers.length) return exercise.answers.slice();
+    return (exercise.tokens || [])
       .filter(function (token) {
-        return token.role === "secondary";
+        return token.role === "secondary" || token.role === "synonym";
       })
       .map(function (token) {
         return token.text;
       });
+  };
+
+  Game.prototype.checkMultiple = function (exercise, selected) {
+    var needed = this.neededTexts(exercise);
     var extras = selected.filter(function (text) {
       return needed.indexOf(text) === -1;
     });

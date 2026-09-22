@@ -237,21 +237,23 @@
 
   Renderer.prototype.renderPlaying = function () {
     var parent = this.game.exercise(this.view.id);
-    var step = parent.type === "rounds" ? parent.rounds[this.view.step] : parent;
+    var steps = this.game.currentSteps();
+    var step = steps ? steps[this.view.step] : parent;
     this.parentExercise = parent;
     this.view.type = step.type;
     this.view.selected = null;
     this.view.chosen = {};
     this.view.placed = {};
     this.view.left = null;
+    this.view.matchCount = 0;
     this.setOwl(step.owl || parent.owl || "Давай попробуем!");
     var html = "";
-    if (parent.type === "rounds") {
+    if (steps) {
       html +=
         '<p class="round-label">Шаг ' +
         (this.view.step + 1) +
         " из " +
-        parent.rounds.length +
+        steps.length +
         "</p>";
     }
     html += this.renderByType(step);
@@ -330,7 +332,37 @@
       (scene ? this.sceneHtml(scene, title) : "") +
       galleryHtml +
       (exercise.prompt ? '<p class="word-hero">' + escapeHtml(exercise.prompt) + "</p>" : "") +
+      (exercise.labels && exercise.labels.length
+        ? '<div class="word-pair">' +
+          exercise.labels
+            .map(function (label) {
+              return '<span class="word-hero">' + escapeHtml(label) + "</span>";
+            })
+            .join("") +
+          "</div>"
+        : "") +
       (question ? '<p class="exercise-question">' + escapeHtml(question) + "</p>" : "")
+    );
+  };
+
+  Renderer.prototype.linkHtml = function (links) {
+    if (!links) return "";
+    var list = Array.isArray(links) ? links : [links];
+    if (!list.length) return "";
+    return (
+      '<div class="scheme">' +
+      list
+        .map(function (link) {
+          return (
+            '<div class="pair-link"><strong>' +
+            escapeHtml(link.a) +
+            '</strong><span class="arrow">↔</span><strong>' +
+            escapeHtml(link.b) +
+            "</strong></div>"
+          );
+        })
+        .join("") +
+      "</div>"
     );
   };
 
@@ -339,7 +371,9 @@
     var self = this;
     return (
       this.titleBlock(exercise) +
-      '<div class="scene-choices">' +
+      '<div class="scene-choices' +
+      (this.view.options.length <= 2 ? " scene-choices-pair" : "") +
+      '">' +
       this.view.options
         .map(function (option) {
           var label = option.label || "";
@@ -582,13 +616,14 @@
 
   Renderer.prototype.renderFindMultiple = function (exercise) {
     this.view.selected = [];
+    var tokens = ForestGame.shuffle(exercise.tokens.slice());
     return (
       this.titleBlock(exercise) +
       '<div class="sentence">' +
-      escapeHtml(exercise.sentence) +
+      escapeHtml(exercise.sentence || "") +
       "</div>" +
       '<div class="tokens" id="tokens">' +
-      exercise.tokens
+      tokens
         .map(function (token, index) {
           return (
             '<button type="button" class="token" data-action="toggle-token" data-index="' +
@@ -710,10 +745,10 @@
       }
     }
     if (type === "findMultiple") {
-      var tokens = exercise.tokens;
+      var needed = this.game.neededTexts(exercise);
       var buttons = root.querySelectorAll(".token");
       for (var t = 0; t < buttons.length; t += 1) {
-        if (tokens[t] && tokens[t].role === "secondary") buttons[t].classList.add("is-glow");
+        if (needed.indexOf(buttons[t].getAttribute("data-text")) !== -1) buttons[t].classList.add("is-glow");
       }
     }
     if (type === "wordRelation") {
@@ -736,8 +771,13 @@
     }
   };
 
-  Renderer.prototype.holdForNextRound = function (text) {
+  Renderer.prototype.holdForNextRound = function (text, links) {
     this.setOwl(text || "Верно!");
+    if (links) {
+      var old = this.el("exercise").querySelector(".scheme");
+      if (old) old.remove();
+      this.el("exercise").insertAdjacentHTML("beforeend", this.linkHtml(links));
+    }
     this.prepareFooter(true);
     this.el("game-footer").hidden = false;
     var buttons = this.el("exercise").querySelectorAll("button");
@@ -753,9 +793,13 @@
       var sentence = this.el("sentence-view");
       if (sentence) sentence.innerHTML = this.highlightSentence(exercise.sentence, exercise.marks);
     }
-    if (extraHtml) {
+    var parent = this.parentExercise || exercise;
+    var extra = extraHtml || "";
+    if (parent.term) extra += '<p class="term-banner">' + escapeHtml(parent.term) + "</p>";
+    extra += this.linkHtml(parent.reveal);
+    if (extra) {
       var box = this.el("exercise");
-      box.insertAdjacentHTML("beforeend", extraHtml);
+      box.insertAdjacentHTML("beforeend", extra);
     }
     var buttons = this.el("exercise").querySelectorAll("button");
     for (var i = 0; i < buttons.length; i += 1) {
@@ -841,18 +885,26 @@
     if (finish.lead && this.el("finish-lead")) this.el("finish-lead").textContent = finish.lead;
     this.el("finish-stars").textContent = "★ " + this.progress.state.totalStars;
     var notes = finish.notes || [];
+    var abilities = finish.abilities || [];
     if (this.el("finish-notes")) {
-      this.el("finish-notes").innerHTML = notes
-        .map(function (note) {
-          return (
-            "<li><strong>" +
-            escapeHtml(note.title) +
-            "</strong><span>" +
-            escapeHtml(note.text) +
-            "</span></li>"
-          );
-        })
-        .join("");
+      this.el("finish-notes").innerHTML =
+        abilities
+          .map(function (item) {
+            return '<li class="ability">' + item.icon + " " + escapeHtml(item.text) + "</li>";
+          })
+          .join("") +
+        notes
+          .map(function (note) {
+            return (
+              "<li><strong>" +
+              escapeHtml(note.title) +
+              "</strong><span>" +
+              escapeHtml(note.text) +
+              (note.example ? "</span><em>" + escapeHtml(note.example) + "</em>" : "</span>") +
+              "</li>"
+            );
+          })
+          .join("");
     }
     var medals = this.data.medals;
     var state = this.progress.state.medals;

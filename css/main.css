@@ -306,11 +306,12 @@ button {
 .trail-stop {
   position: relative;
   display: grid;
-  grid-template-columns: 56px 1fr auto;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   margin: 0 0 10px;
   padding: 0;
+  min-width: 0;
 }
 
 .trail-dot {
@@ -328,7 +329,11 @@ button {
 .trail-btn {
   text-align: left;
   min-height: 56px;
+  min-width: 0;
   font-size: 20px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .trail-stop.is-locked .trail-btn {
@@ -350,6 +355,30 @@ button {
 
 .trail-stop.zone-many.is-done .trail-dot {
   background: #c9f0e4;
+}
+
+.trail-stop.zone-valley .trail-dot {
+  background: #f3ddb8;
+}
+
+.trail-stop.zone-valley.is-done .trail-dot {
+  background: #f6c9a8;
+}
+
+.trail-stop.zone-friends .trail-dot {
+  background: #d7f0c8;
+}
+
+.trail-stop.zone-friends.is-done .trail-dot {
+  background: #b7e39a;
+}
+
+.trail-stop.zone-opposites .trail-dot {
+  background: #d9e4f8;
+}
+
+.trail-stop.zone-opposites.is-done .trail-dot {
+  background: #b9ccee;
 }
 
 .trail-bridge {
@@ -414,5 +443,14 @@ button {
 
   .trail::before {
     left: 22px;
+  }
+
+  .trail-stop {
+    gap: 8px;
+  }
+
+  .trail-btn {
+    font-size: 17px;
+    padding: 8px 10px;
   }
 }
