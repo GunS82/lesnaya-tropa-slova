@@ -291,9 +291,11 @@
     if (at === -1) {
       selected.push(value);
       node.classList.add("is-selected");
+      node.setAttribute("aria-pressed", "true");
     } else {
       selected.splice(at, 1);
       node.classList.remove("is-selected");
+      node.setAttribute("aria-pressed", "false");
     }
     ui.view.selected = selected;
   }

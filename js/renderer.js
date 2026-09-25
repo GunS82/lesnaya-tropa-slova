@@ -591,7 +591,7 @@
         .map(function (option) {
           var label = option.label || "";
           return (
-            '<button type="button" class="scene-choice answer" data-action="toggle-scene" data-value="' +
+            '<button type="button" class="scene-choice answer" aria-pressed="false" data-action="toggle-scene" data-value="' +
             escapeHtml(option.id) +
             '">' +
             self.miniScene(option.scene, label || option.id) +
