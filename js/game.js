@@ -187,6 +187,39 @@
     return true;
   };
 
+  Game.prototype.checkWordFamily = function (exercise, selected) {
+    return this.checkMultiple(exercise, selected);
+  };
+
+  Game.prototype.checkWordPart = function (exercise, start, end) {
+    var answer = exercise.answer;
+    if (!answer || answer.length < 2) return false;
+    var lo = Math.min(Number(start), Number(end));
+    var hi = Math.max(Number(start), Number(end));
+    return lo === Number(answer[0]) && hi === Number(answer[1]);
+  };
+
+  Game.prototype.relationKind = function (left, right) {
+    var list = this.data.relations || [];
+    var a = normalize(left);
+    var b = normalize(right);
+    for (var i = 0; i < list.length; i += 1) {
+      var ra = normalize(list[i].a);
+      var rb = normalize(list[i].b);
+      if ((ra === a && rb === b) || (ra === b && rb === a)) return list[i].kind;
+    }
+    return "";
+  };
+
+  Game.prototype.lemmaId = function (word) {
+    var list = this.data.words || [];
+    var wanted = normalize(word);
+    for (var i = 0; i < list.length; i += 1) {
+      if (normalize(list[i].word) === wanted) return list[i].lemmaId || "";
+    }
+    return "";
+  };
+
   Game.prototype.checkRelation = function (relation, question) {
     return normalize(question) === normalize(relation.question);
   };

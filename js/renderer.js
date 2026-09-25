@@ -276,7 +276,11 @@
       case "classification":
         return this.renderClassification(exercise);
       case "findMultiple":
+      case "wordFamily":
+      case "wordForm":
         return this.renderFindMultiple(exercise);
+      case "markWordPart":
+        return this.renderMarkWordPart(exercise);
       case "matchPairs":
         return this.renderMatchPairs(exercise);
       case "sceneChoice":
@@ -332,6 +336,9 @@
       (scene ? this.sceneHtml(scene, title) : "") +
       galleryHtml +
       (exercise.prompt ? '<p class="word-hero">' + escapeHtml(exercise.prompt) + "</p>" : "") +
+      this.groupsShowHtml(exercise.groupsShow) +
+      this.coversHtml(exercise.covers) +
+      this.formsHtml(exercise.forms) +
       (exercise.labels && exercise.labels.length
         ? '<div class="word-pair">' +
           exercise.labels
@@ -343,6 +350,186 @@
         : "") +
       (question ? '<p class="exercise-question">' + escapeHtml(question) + "</p>" : "")
     );
+  };
+
+  Renderer.prototype.groupsShowHtml = function (groups) {
+    if (!groups || !groups.length) return "";
+    return (
+      '<div class="shown-groups">' +
+      groups
+        .map(function (group) {
+          return (
+            '<div class="shown-group"><h3>' +
+            escapeHtml(group.title) +
+            "</h3><p>" +
+            group.words
+              .map(function (word) {
+                return escapeHtml(word);
+              })
+              .join(" · ") +
+            "</p></div>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  };
+
+  Renderer.prototype.rootSpan = function (word, root) {
+    var norm = ForestGame.normalize(word);
+    var rootNorm = ForestGame.normalize(root);
+    var at = norm.indexOf(rootNorm);
+    if (at < 0 || !root) return escapeHtml(word);
+    return (
+      escapeHtml(word.slice(0, at)) +
+      '<span class="root-letters">' +
+      escapeHtml(word.slice(at, at + root.length)) +
+      "</span>" +
+      escapeHtml(word.slice(at + root.length))
+    );
+  };
+
+  Renderer.prototype.coversHtml = function (covers) {
+    if (!covers || !covers.length) return "";
+    function face(word, root) {
+      var norm = ForestGame.normalize(word);
+      var at = norm.indexOf(ForestGame.normalize(root));
+      if (at < 0) return escapeHtml(word);
+      var tail = word.slice(at + root.length);
+      return (
+        '<span class="covered-word"><span class="leaf-cover" aria-hidden="true">🍃</span><span class="covered-tail">' +
+        escapeHtml(tail || " ") +
+        "</span></span>"
+      );
+    }
+    return (
+      '<div class="cover-list">' +
+      covers
+        .map(function (pair) {
+          return (
+            '<div class="cover-pair">' +
+            face(pair.left, pair.root) +
+            '<span class="arrow">—</span>' +
+            face(pair.right, pair.root) +
+            "</div>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  };
+
+  Renderer.prototype.formsHtml = function (forms) {
+    if (!forms || !forms.length) return "";
+    var self = this;
+    return (
+      '<div class="form-row">' +
+      forms
+        .map(function (item) {
+          if (item.root) {
+            return '<span class="static-word">' + self.rootSpan(item.word, item.root) + "</span>";
+          }
+          var ending = item.ending || "";
+          var stem = item.word.slice(0, item.word.length - ending.length);
+          return (
+            '<span class="static-word"><span class="root-letters">' +
+            escapeHtml(stem) +
+            '</span><span class="ending-letters">' +
+            escapeHtml(ending) +
+            "</span></span>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  };
+
+  Renderer.prototype.letterRow = function (word) {
+    return (
+      '<div class="letter-row">' +
+      String(word)
+        .split("")
+        .map(function (letter, index) {
+          return (
+            '<button type="button" class="letter" data-action="mark-letter" data-index="' +
+            index +
+            '">' +
+            escapeHtml(letter) +
+            "</button>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  };
+
+  Renderer.prototype.renderMarkWordPart = function (exercise) {
+    this.view.mark = [];
+    var ask =
+      exercise.question ||
+      (exercise.part === "ending"
+        ? "Нажми первую и последнюю букву окончания. Для одной буквы нажми её дважды."
+        : "Нажми первую и последнюю букву корня.");
+    var copy = {
+      title: exercise.title,
+      scene: exercise.scene,
+      gallery: exercise.gallery,
+      prompt: exercise.prompt,
+      question: ask
+    };
+    return this.titleBlock(copy) + this.letterRow(exercise.word);
+  };
+
+  Renderer.prototype.paintMorpheme = function (exercise) {
+    var row = this.el("exercise").querySelector(".letter-row");
+    if (!row || !exercise.answer) return;
+    var letters = row.querySelectorAll(".letter");
+    var from = Number(exercise.answer[0]);
+    var to = Number(exercise.answer[1]);
+    var first = letters[from];
+    var last = letters[to];
+    if (!first || !last) return;
+    var rowRect = row.getBoundingClientRect();
+    var aRect = first.getBoundingClientRect();
+    var bRect = last.getBoundingClientRect();
+    var mark = document.createElement("span");
+    mark.className = exercise.part === "ending" ? "ending-frame" : "root-arc";
+    mark.style.left = aRect.left - rowRect.left + "px";
+    mark.style.width = bRect.right - aRect.left + "px";
+    if (exercise.part === "ending") {
+      mark.style.top = aRect.top - rowRect.top - 4 + "px";
+      mark.style.height = aRect.height + 8 + "px";
+    } else {
+      mark.style.top = aRect.top - rowRect.top - 14 + "px";
+    }
+    row.appendChild(mark);
+  };
+
+  Renderer.prototype.highlightFamily = function (exercise) {
+    if (!exercise.root) return;
+    var nodes = this.el("exercise").querySelectorAll(".token.is-correct");
+    for (var i = 0; i < nodes.length; i += 1) {
+      var text = nodes[i].getAttribute("data-text");
+      var picture = nodes[i].querySelector(".mini-scene");
+      nodes[i].innerHTML = (picture ? picture.outerHTML : "") + this.rootSpan(text, exercise.root);
+    }
+    this.el("exercise").insertAdjacentHTML(
+      "beforeend",
+      '<p class="term-banner">Корень: ' + escapeHtml(exercise.root.toUpperCase()) + "</p>"
+    );
+  };
+
+  Renderer.prototype.labelGroupRoots = function (exercise) {
+    var groups = exercise.groups || [];
+    for (var i = 0; i < groups.length; i += 1) {
+      if (!groups[i].root) continue;
+      var title = this.el("exercise").querySelector('.basket[data-id="' + groups[i].id + '"] h3');
+      if (!title || title.parentNode.querySelector(".root-name")) continue;
+      title.insertAdjacentHTML(
+        "afterend",
+        '<p class="root-name">корень <span class="root-letters">' + escapeHtml(groups[i].root) + "</span></p>"
+      );
+    }
   };
 
   Renderer.prototype.linkHtml = function (links) {
@@ -625,16 +812,18 @@
       '<div class="tokens" id="tokens">' +
       tokens
         .map(function (token, index) {
+          var picture = token.scene ? this.miniScene(token.scene, token.text) : "";
           return (
             '<button type="button" class="token" data-action="toggle-token" data-index="' +
             index +
             '" data-text="' +
             escapeHtml(token.text) +
             '">' +
+            picture +
             escapeHtml(token.text) +
             "</button>"
           );
-        })
+        }, this)
         .join("") +
       "</div>" +
       '<div class="check-row"><button type="button" class="btn btn-primary" data-action="check-multiple">Готово</button></div>'
@@ -744,11 +933,17 @@
         }
       }
     }
-    if (type === "findMultiple") {
+    if (type === "findMultiple" || type === "wordFamily" || type === "wordForm") {
       var needed = this.game.neededTexts(exercise);
       var buttons = root.querySelectorAll(".token");
       for (var t = 0; t < buttons.length; t += 1) {
         if (needed.indexOf(buttons[t].getAttribute("data-text")) !== -1) buttons[t].classList.add("is-glow");
+      }
+    }
+    if (type === "markWordPart" && exercise.answer) {
+      var letters = root.querySelectorAll(".letter");
+      for (var m = Number(exercise.answer[0]); m <= Number(exercise.answer[1]); m += 1) {
+        if (letters[m]) letters[m].classList.add("is-glow");
       }
     }
     if (type === "wordRelation") {

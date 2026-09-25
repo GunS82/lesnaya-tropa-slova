@@ -154,14 +154,45 @@
     }
   }
 
+  function clearLetterPicks() {
+    var letters = document.querySelectorAll(".letter");
+    for (var i = 0; i < letters.length; i += 1) letters[i].classList.remove("is-picked");
+  }
+
+  function onMarkLetter(index, node) {
+    var ex = playing();
+    var mark = ui.view.mark || [];
+    if (mark.length >= 2) {
+      mark = [];
+      clearLetterPicks();
+    }
+    mark.push(Number(index));
+    ui.view.mark = mark;
+    node.classList.add("is-picked");
+    if (mark.length < 2) return;
+    if (game.checkWordPart(ex, mark[0], mark[1])) {
+      ui.paintMorpheme(ex);
+      afterStepSuccess();
+      return;
+    }
+    ui.fail(ex, node);
+    ui.view.mark = [];
+    clearLetterPicks();
+    if (game.hintLevel >= 3) ui.glowCorrect(ex);
+  }
+
   function onCheckMultiple() {
     var ex = playing();
-    var result = game.checkMultiple(ex, ui.view.selected);
+    var result =
+      ex.type === "wordFamily" || ex.type === "wordForm"
+        ? game.checkWordFamily(ex, ui.view.selected)
+        : game.checkMultiple(ex, ui.view.selected);
     if (result.ok) {
       var tokens = document.querySelectorAll(".token");
       for (var i = 0; i < tokens.length; i += 1) {
         if (tokens[i].classList.contains("is-selected")) tokens[i].classList.add("is-correct");
       }
+      if (ex.type === "wordFamily") ui.highlightFamily(ex);
       afterStepSuccess();
       return;
     }
@@ -209,6 +240,7 @@
     }
     ui.view.selected = null;
     if (Object.keys(ui.view.placed).length === ex.items.length) {
+      ui.labelGroupRoots(ex);
       afterStepSuccess();
     }
   }
@@ -364,6 +396,9 @@
         break;
       case "check-multiple":
         onCheckMultiple();
+        break;
+      case "mark-letter":
+        onMarkLetter(btn.getAttribute("data-index"), btn);
         break;
       case "pick-item":
         onPickItem(id, btn);

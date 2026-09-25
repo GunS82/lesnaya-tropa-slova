@@ -55,6 +55,7 @@ button {
   position: fixed;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
   pointer-events: none;
   background:
     radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.18), transparent 22%),
@@ -243,7 +244,7 @@ button {
 
 .screen-head {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   margin-bottom: 18px;
@@ -252,7 +253,9 @@ button {
 
 .screen-head h2 {
   margin: 0;
+  min-width: 0;
   font-size: 24px;
+  overflow-wrap: anywhere;
 }
 
 .star-badge {
@@ -379,6 +382,38 @@ button {
 
 .trail-stop.zone-opposites.is-done .trail-dot {
   background: #b9ccee;
+}
+
+.trail-stop.zone-forest .trail-dot {
+  background: #e7f0c9;
+}
+
+.trail-stop.zone-forest.is-done .trail-dot {
+  background: #cfe6a4;
+}
+
+.trail-stop.zone-roots .trail-dot {
+  background: #f0ddc0;
+}
+
+.trail-stop.zone-roots.is-done .trail-dot {
+  background: #e2c59a;
+}
+
+.trail-stop.zone-maze .trail-dot {
+  background: #eadcf4;
+}
+
+.trail-stop.zone-maze.is-done .trail-dot {
+  background: #d7c0ea;
+}
+
+.trail-stop.zone-workshop .trail-dot {
+  background: #f8e2c8;
+}
+
+.trail-stop.zone-workshop.is-done .trail-dot {
+  background: #f0c9a0;
 }
 
 .trail-bridge {

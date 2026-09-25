@@ -50,7 +50,7 @@ const freshIds = [
   "antonym_context_01",
   "words_final_02"
 ];
-assert(ids.length === 26, "26 exercises, got " + ids.length);
+assert(ids.length === 42, "42 exercises, got " + ids.length);
 ids.forEach(function (id) {
   assert(data.exercises[id], "missing exercise " + id);
 });
@@ -185,6 +185,102 @@ for (var spin = 0; spin < 30 && !moved; spin += 1) {
 }
 assert(moved, "answers can leave their original order");
 
+const familyIds = [
+  "family_brother_01",
+  "family_mushroom_02",
+  "family_names_03",
+  "family_house_04",
+  "family_mark_05",
+  "family_hide_06",
+  "family_sort_07",
+  "family_lookalike_08",
+  "family_synonym_09",
+  "family_roots_10",
+  "form_same_11",
+  "form_change_12",
+  "form_ending_13",
+  "form_repair_14",
+  "form_vs_root_15",
+  "family_final_16"
+];
+familyIds.forEach(function (id, index) {
+  assert(ids[26 + index] === id, "family order " + id);
+});
+
+const mushrooms = data.exercises.family_mushroom_02;
+assert(
+  game.checkWordFamily(mushrooms, ["гриб", "грибок", "грибник", "грибной"]).ok,
+  "mushroom family exact"
+);
+assert(
+  game.checkWordFamily(mushrooms, ["гриб", "грибок", "грибник", "грибной", "ягода"]).reason === "main",
+  "mushroom family rejects an extra word"
+);
+assert(
+  game.checkWordFamily(mushrooms, ["гриб", "грибок", "грибник"]).reason === "missing",
+  "mushroom family needs the whole set"
+);
+
+const houseRoot = data.exercises.family_mark_05.steps[1];
+assert(houseRoot.part === "root", "mark root part");
+assert(game.checkWordPart(houseRoot, 0, 2), "root range of домик");
+assert(game.checkWordPart(houseRoot, 2, 0), "root range accepts either end first");
+assert(!game.checkWordPart(houseRoot, 0, 4), "suffix is not the root");
+
+const birchEnding = data.exercises.form_ending_13.steps[3];
+assert(birchEnding.part === "ending" && birchEnding.word === "берёзой", "ending task word");
+assert(game.checkWordPart(birchEnding, 5, 6), "ending ой");
+assert(!game.checkWordPart(birchEnding, 0, 4), "root is not the ending");
+assert(game.checkWordPart(data.exercises.form_ending_13.steps[0], 5, 5), "single-letter ending");
+assert("берёзой".split("").slice(5).join("") === "ой", "ой sits at the end of берёзой");
+assert("светлый".split("").slice(0, 4).join("") === "свет", "свет is the start of светлый");
+assert("рекой".split("").slice(3).join("") === "ой", "ой sits at the end of рекой");
+assert("домик".split("").slice(0, 3).join("") === "дом", "дом is the start of домик");
+
+assert(game.relationKind("гора", "горный") === "root", "гора and горный are related");
+assert(game.relationKind("горе", "гористый") === "none", "горе and гористый are not related");
+assert(game.relationKind("оса", "осина") === "none", "оса and осина are not related");
+assert(game.relationKind("смелый", "храбрый") === "synonym", "смелый and храбрый are synonyms");
+assert(game.relationKind("смелый", "смелость") === "root", "смелый and смелость share a root");
+assert(game.relationKind("берёза", "берёзы") === "form", "берёза and берёзы are forms");
+assert(game.relationKind("трава", "травка") === "root", "трава and травка are related words");
+assert(game.relationKind("трава", "травы") === "form", "трава and травы are forms");
+
+function pairStep(exercise, left, right) {
+  var steps = exercise.steps || exercise.items || exercise.pool || [];
+  return steps.filter(function (step) {
+    return step.a === left && step.b === right;
+  })[0];
+}
+const look = data.exercises.family_lookalike_08;
+assert(pairStep(look, "гора", "горный").answer === "да", "exercise accepts гора — горный");
+assert(pairStep(look, "горе", "гористый").answer === "нет", "exercise rejects горе — гористый");
+assert(pairStep(look, "оса", "осина").answer === "нет", "exercise rejects оса — осина");
+const synItems = data.exercises.family_synonym_09.items;
+function grouped(list, left, right) {
+  return list.filter(function (item) { return item.a === left && item.b === right; })[0];
+}
+assert(grouped(synItems, "смелый", "храбрый").group === "synonym", "basket: synonyms");
+assert(grouped(synItems, "смелый", "смелость").group === "root", "basket: same root");
+const formItems = data.exercises.form_vs_root_15.items;
+assert(grouped(formItems, "берёза", "берёзы") === undefined, "birch forms live in the final and the lemma list");
+assert(grouped(formItems, "трава", "травка").group === "root", "травка is a new related word");
+assert(grouped(formItems, "трава", "травы").group === "form", "травы keeps the same meaning");
+assert(game.checkSingle(pairStep(data.exercises.family_final_16, "берёза", "берёзы"), "формы одного слова"), "final calls birch a form");
+
+assert(game.lemmaId("берёза") && game.lemmaId("берёза") === game.lemmaId("берёзы"), "forms share a lemma");
+assert(game.lemmaId("берёза") === game.lemmaId("берёзой"), "берёзой is the same lemma");
+assert(game.lemmaId("трава") === game.lemmaId("травы"), "травы shares the grass lemma");
+assert(game.lemmaId("трава") !== game.lemmaId("травка"), "травка is a different word");
+assert(game.lemmaId("река") === game.lemmaId("рекой"), "river forms share a lemma");
+
+const tree = data.exercises.family_final_16;
+game.begin("family_final_16");
+assert(game.currentSteps().length === 10, "word tree draws 10");
+assert(!game.isFinishedStep(tree, 0) && game.isFinishedStep(tree, 9), "word tree ends after 10");
+assert(!game.isFinishedStep(data.exercises.family_mark_05, 1), "root marking waits for every word");
+assert(game.isFinishedStep(data.exercises.family_mark_05, 2), "root marking ends on the third word");
+
 assert(context.window.ForestGame.starsFromMistakes(0, 1) === 3, "stars clean");
 assert(context.window.ForestGame.starsFromMistakes(1, 1) === 2, "stars one miss");
 assert(context.window.ForestGame.starsFromMistakes(2, 1) === 1, "stars many miss");
@@ -232,6 +328,22 @@ replay.complete("word_meaning_01", 3, 0);
 replay.complete("word_meaning_01", 1, 5);
 assert(replay.starsFor("word_meaning_01") === 3, "replay keeps the best stars");
 assert(replay.state.totalStars === 3, "replay does not add a weaker result");
+
+const disk = memory();
+const kept = new context.window.ForestProgress(disk, data);
+kept.useTopic("wordMeaning");
+kept.complete("word_meaning_03", 2, 1);
+const reloaded = new context.window.ForestProgress(disk, data);
+assert(reloaded.isCompleted("word_meaning_03"), "progress survives reload");
+assert(reloaded.starsFor("word_meaning_03") === 2, "reloaded stars stay");
+assert(reloaded.state.activeTopic === "wordMeaning", "reloaded topic stays");
+
+const gateFamily = new context.window.ForestProgress(memory(), data);
+gateFamily.useTopic("wordMeaning");
+ids.slice(0, 26).forEach(function (id) { gateFamily.complete(id, 3, 0); });
+assert(gateFamily.isUnlocked("family_brother_01"), "word families open after the meanings");
+assert(!gateFamily.isUnlocked("family_mushroom_02"), "the next family task stays closed");
+assert(gateFamily.starsFor("words_final_02") === 3, "the tower result stays");
 
 data.maps.other = [
   { id: "start", kind: "start" },
